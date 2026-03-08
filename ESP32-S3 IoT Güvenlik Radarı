@@ -1,0 +1,91 @@
+#include <WiFi.h>
+#include <WebServer.h>
+#include <Wire.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_SSD1306.h>
+
+// --- AYARLAR ---
+const char* ssid = "*******";      
+const char* password = "*******"; 
+
+#define TRIG_PIN 13
+#define ECHO_PIN 14
+#define SDA_PIN 7
+#define SCL_PIN 6
+
+Adafruit_SSD1306 display(128, 64, &Wire, -1);
+WebServer server(80);
+
+int mesafe = 0;
+bool alarmDurumu = false;
+
+// --- WEB SAYFASI (ALARM UYARILI) ---
+String getHTML() {
+  String renk = alarmDurumu ? "#ff0000" : "#00ff00"; // Alarm varsa kırmızı, yoksa yeşil
+  String mesaj = alarmDurumu ? "!!! IHLAL TESPIT EDILDI !!!" : "Sistem Guvende";
+  
+  String html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><meta name='viewport' content='width=device-width, initial-scale=1'>";
+  html += "<style>body{font-family:Arial; text-align:center; background:#121212; color:white;}";
+  html += ".card{background:#1e1e1e; padding:20px; border-radius:15px; display:inline-block; margin-top:50px; border:3px solid " + renk + ";}";
+  html += "h1{color:" + renk + ";} .val{font-size:60px; font-weight:bold;}";
+  html += ".alert{font-size:20px; background:" + renk + "; color:black; padding:10px; border-radius:5px; margin-top:10px;}</style>";
+  html += "<script>setInterval(function(){location.reload();}, 1000);</script>"; // 1 saniyede bir sayfayı yeniler
+  html += "</head><body><div class='card'><h1>GÜVENLİK PANELİ</h1>";
+  html += "<div class='val'>" + String(mesafe) + " cm</div>";
+  html += "<div class='alert'>" + mesaj + "</div>";
+  html += "</div></body></html>";
+  return html;
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(TRIG_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  
+  Wire.begin(SDA_PIN, SCL_PIN);
+  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);
+  
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) { delay(500); }
+  
+  server.on("/", []() { server.send(200, "text/html", getHTML()); });
+  server.begin();
+}
+
+void loop() {
+  // 1. MESAFE ÖLÇÜMÜ
+  digitalWrite(TRIG_PIN, LOW); delayMicroseconds(2);
+  digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);
+  digitalWrite(TRIG_PIN, LOW);
+  mesafe = pulseIn(ECHO_PIN, HIGH) * 0.034 / 2;
+
+  // 2. ALARM MANTIĞI VE EKRAN EFEKTİ
+  display.clearDisplay();
+  
+  if (mesafe > 0 && mesafe < 15) {
+    alarmDurumu = true;
+    // EKRANI TERSİNE ÇEVİR (FLAŞÖR EFEKTİ)
+    display.fillScreen(WHITE); // Ekranı komple beyaz yap
+    display.setTextColor(BLACK); // Yazıyı siyah yap (beyaz üstüne siyah)
+    display.setCursor(10, 5);
+    display.setTextSize(2);
+    display.println("!! DIKKAT !!");
+    display.setCursor(10, 30);
+    display.setTextSize(3);
+    display.print(mesafe);
+    display.print("cm");
+  } else {
+    alarmDurumu = false;
+    display.setTextColor(WHITE);
+    display.setCursor(0, 0);
+    display.setTextSize(1);
+    display.println("Guvende...");
+    display.setCursor(15, 25);
+    display.setTextSize(4);
+    display.print(mesafe);
+  }
+
+  display.display();
+  server.handleClient();
+  delay(100);
+}
