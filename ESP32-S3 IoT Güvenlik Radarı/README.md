@@ -36,4 +36,6 @@ Bu proje, **ESP32-S3** mikrodenetleyicisi kullanılarak geliştirilmiş; nesne m
 
 ### 📦 Kurulum ve Kullanım
 1. `config.h` (veya ana kod) içerisindeki `WIFI_SSID` ve `WIFI_PASS` bilgilerini güncelleyin.
-2. Gerekli kütüphan
+2. Gerekli kütüphaneleri (Adafruit SSD1306, Adafruit GFX) Arduino IDE üzerinden kurun.
+3. Kodu ESP32-S3 kartınıza yükleyin.
+4. Seri port ekranında veya OLED üzerinde yazan **IP adresini** tarayıcınıza girin.
